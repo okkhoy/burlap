@@ -114,7 +114,7 @@ public class GridWorldState implements MutableOOState {
 		if(ind != -1){
 			return locations.get(ind);
 		}
-		return null;
+		throw new RuntimeException("Unknown object of name " + oname);
 	}
 
 	@Override
@@ -237,5 +237,16 @@ public class GridWorldState implements MutableOOState {
 		touchLocations().remove(ind);
 		locations.add(ind, n);
 		return n;
+	}
+
+	protected int indexOfObjectNameInList(String oname, List<? extends ObjectInstance> list) {
+		int ind = -1;
+		for(int i = 0; i < list.size(); i++){
+			if(list.get(i).name().equals(oname)){
+				ind = i;
+				break;
+			}
+		}
+		return ind;
 	}
 }

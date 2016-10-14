@@ -1,6 +1,7 @@
 package burlap.domain.singleagent.gridworld;
 
 import burlap.behavior.policy.Policy;
+import burlap.behavior.singleagent.auxiliary.StateReachability;
 import burlap.behavior.singleagent.auxiliary.valuefunctionvis.ValueFunctionVisualizerGUI;
 import burlap.behavior.valuefunction.ValueFunction;
 import burlap.debugtools.RandomFactory;
@@ -28,6 +29,7 @@ import burlap.mdp.singleagent.model.statemodel.FullStateModel;
 import burlap.mdp.singleagent.oo.OOSADomain;
 import burlap.shell.EnvironmentShell;
 import burlap.shell.visual.VisualExplorer;
+import burlap.statehashing.simple.SimpleHashableStateFactory;
 import burlap.visualizer.Visualizer;
 
 import java.util.ArrayList;

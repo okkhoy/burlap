@@ -40,6 +40,25 @@ public class ConcatenatedObjectFeatures implements
 		this.objectClassOrder = objectClassOrder;
 		this.objectVectorGenerators = objectVectorGenerators;
 	}
+	
+
+	/**
+	 * Returns a list of String representations for all variable keys of OO-MDP objects in the state, formatted "objectName.variableKey".
+	 * @param s the input state
+	 * @return a list of String representations for all variable keys of OO-MDP objects in the state
+	 */
+	public List<String> featureNames(OOState s) {
+		List<String> featureVector = new ArrayList<String>();
+		for (String oclassName : this.objectClassOrder) {
+			List<ObjectInstance> obs = s.objectsOfClass(oclassName);
+			for (int i = 0; i < obs.size(); i++) {
+				for (Object o : obs.get(i).variableKeys()) {
+					featureVector.add(obs.get(i).name() + "." + o.toString());
+				}
+			}
+		}
+		return featureVector;
+	}
 
 	/**
 	 * Adds an OO-MDP class next in the list of object classes to vectorize with the given {@link DenseStateFeatures}.

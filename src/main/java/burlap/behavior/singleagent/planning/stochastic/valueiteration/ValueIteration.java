@@ -121,6 +121,11 @@ public class ValueIteration extends DynamicProgramming implements Planner {
 		this.hasRunVI = false;
 	}
 	
+	public void resetSolverKeepStates() {
+		super.resetSolver();
+		this.hasRunVI = false;
+	}
+	
 	/**
 	 * Runs VI until the specified termination conditions are met. In general, this method should only be called indirectly through the {@link #planFromState(State)} method.
 	 * The {@link #performReachabilityFrom(State)} must have been performed at least once
