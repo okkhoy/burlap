@@ -48,6 +48,7 @@ import burlap.mdp.auxiliary.stateconditiontest.TFGoalCondition;
 import burlap.statehashing.masked.MaskedHashableStateFactory;
 import burlap.statehashing.simple.SimpleHashableStateFactory;
 import burlap.visualizer.Visualizer;
+import poption.domain.DoorWorldDomain;
 import weka.classifiers.Classifier;
 import weka.classifiers.trees.J48;
 

@@ -6,13 +6,6 @@ import java.util.Random;
 
 import javax.swing.JFrame;
 
-import amdp.cleanupdomain.CleanupRandomDomainDriver;
-import amdp.cleanupdomain.CleanupWorld;
-import amdp.cleanupdomain.CleanupWorldRandom;
-import amdp.cleanupdomain.CleanupWorldRandom.CleanupGoal;
-import amdp.cleanupdomain.CleanupWorldRandom.CleanupGoalDescription;
-import amdp.cleanupdomain.PullCostGoalRF;
-import amdp.hardcoded.cleanup.FixedDoorCleanupEnv;
 import burlap.behavior.policy.Policy;
 import burlap.behavior.singleagent.auxiliary.EpisodeSequenceVisualizer;
 import burlap.behavior.singleagent.learning.tdmethods.QLearning;
@@ -23,11 +16,24 @@ import burlap.behavior.singleagent.planning.deterministic.DeterministicPlanner;
 import burlap.behavior.singleagent.planning.deterministic.uninformed.bfs.BFS;
 import burlap.behavior.singleagent.planning.stochastic.rtdp.BoundedRTDP;
 import burlap.debugtools.RandomFactory;
+import burlap.mdp.auxiliary.common.GoalConditionTF;
+import burlap.mdp.auxiliary.stateconditiontest.StateConditionTest;
+import burlap.mdp.core.TerminalFunction;
+import burlap.mdp.core.oo.state.OOState;
+import burlap.mdp.singleagent.common.GoalBasedRF;
+import burlap.mdp.singleagent.model.RewardFunction;
+import burlap.mdp.singleagent.oo.OOSADomain;
+import burlap.statehashing.masked.MaskedHashableStateFactory;
+import poption.domain.cleanup.CleanupGoal;
+import poption.domain.cleanup.CleanupGoalDescription;
+import poption.domain.cleanup.CleanupWorld;
+import poption.domain.cleanup.state.CleanupRandomStateGenerator;
+import poption.domain.cleanup.state.CleanupWorldState;
 
 public class CleanupRandomTrainer extends PoptionsTrainer {
 
 	private Random rng;
-	private CleanupWorldRandom cw;
+	private CleanupWorld cw;
 	private RewardFunction rf;
 	private TerminalFunction tf;
 	private Planner planner;
@@ -48,7 +54,7 @@ public class CleanupRandomTrainer extends PoptionsTrainer {
 	}
 	
 	public CleanupRandomTrainer(int numBlocks, int numGoals, long seed) {
-		this(numBlocks, numGoals, seed, CleanupWorld.PLOCK_IN_ROOM);
+		this(numBlocks, numGoals, seed, CleanupWorld.PF_BLOCK_IN_ROOM);
 	}
 	
 	public CleanupRandomTrainer(int numBlocks, int numGoals, long seed, String goalPF) {
@@ -65,12 +71,12 @@ public class CleanupRandomTrainer extends PoptionsTrainer {
 		mhsf = new MaskedHashableStateFactory(false);
 		if (goalPF.equals(CleanupWorld.PF_AGENT_IN_DOOR)) {
 			mhsf.addObjectClassMasks(CleanupWorld.CLASS_DOOR, CleanupWorld.CLASS_ROOM, CleanupWorld.CLASS_BLOCK);
-			mhsf.addAttributeMasks(CleanupWorld.ATT_DIR);
-		} else if (goalPF.equals(CleanupWorld.PLOCK_IN_ROOM)){
+			mhsf.addVariableMasks(CleanupWorld.ATT_DIR);
+		} else if (goalPF.equals(CleanupWorld.PF_BLOCK_IN_ROOM)){
 			mhsf.addObjectClassMasks(CleanupWorld.CLASS_DOOR);
-			mhsf.addAttributeMasks(CleanupWorld.ATT_DIR);
+			mhsf.addVariableMasks(CleanupWorld.ATT_DIR);
 		} else if (goalPF.equals(CleanupWorld.PF_BLOCK_IN_DOOR)){
-			mhsf.addAttributeMasks(CleanupWorld.ATT_DIR, CleanupWorld.ATT_LOCKED);
+			mhsf.addVariableMasks(CleanupWorld.ATT_DIR, CleanupWorld.ATT_LOCKED);
 		}
 	}
 	
@@ -79,7 +85,7 @@ public class CleanupRandomTrainer extends PoptionsTrainer {
 		double lockProb = 0.0;
 		
 		if (testing) {
-			goalPF = CleanupWorld.PLOCK_IN_ROOM;
+			goalPF = CleanupWorld.PF_BLOCK_IN_ROOM;
 		}
 		
 		// do __NOT__ call setStateHashingMasks
@@ -90,20 +96,20 @@ public class CleanupRandomTrainer extends PoptionsTrainer {
 		RandomFactory.seedMapped(randomFactoryMapIndex, seed);
 		rng = RandomFactory.getMapped(randomFactoryMapIndex);
 
-		cw = new CleanupWorldRandom();
+		cw = new CleanupWorld();
 		cw.includeDirectionAttribute(true);
-		cw.includePullAction(true);
-		cw.includeWallPF_s(true);
 		cw.includeLockableDoors(true);
 		cw.setLockProbability(lockProb);
-		domain = cw.generateDomain();
+		domain = (OOSADomain) cw.generateDomain();
 		
-		initialState = cw.getRandomState(domain, rng, numBlocks);
+		CleanupRandomStateGenerator randomCleanup = new CleanupRandomStateGenerator();
 		
-		goalDescriptions = CleanupWorldRandom.getRandomGoalDescription(rng, initialState, numGoals, domain.getPropFunction(goalPF));
+		initialState = (OOState) randomCleanup.generateState(); //cw.getRandomState(domain, rng, numBlocks);
+		
+		goalDescriptions = CleanupRandomStateGenerator.getRandomGoalDescription(rng, (CleanupWorldState) initialState, numGoals, domain.propFunction(goalPF));
 		System.out.println(goalDescriptions[0]);
 		
-		goalCondition = new CleanupGoal(goalDescriptions);
+		goalCondition = (StateConditionTest) new CleanupGoal(goalDescriptions);
 		rf = new GoalBasedRF(goalCondition, 1., 0.);
 		tf = new GoalConditionTF(goalCondition);
 		

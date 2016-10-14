@@ -22,6 +22,7 @@ import burlap.mdp.core.state.State;
 import burlap.statehashing.HashableState;
 import burlap.statehashing.masked.MaskedHashableStateFactory;
 import burlap.statehashing.simple.SimpleHashableStateFactory;
+import poption.domain.cleanup.CleanupWorld;
 import weka.classifiers.Classifier;
 import weka.classifiers.Evaluation;
 import weka.classifiers.trees.J48;
@@ -227,16 +228,16 @@ public class PoptionsDriver {
 		// The following code loads the ARFF file and evaluates the model
 		// which is not especially relevant in this instance
 		// since we only care about the states detected positive by model
-		ArffLoader loader = new ArffLoader();
-		loader.setFile(new File(getOutputFilename() + ".arff"));
-		loader.setFile(new File("./output/dwdoor.arff"));
-		Instances structure = loader.getDataSet();
-		structure.setClassIndex(structure.numAttributes() - 1);
-		ArffLoader loader2 = new ArffLoader();
-		loader2.setFile(new File(getOutputFilename() + "_test.arff"));
-		loader2.setFile(new File("./output/dwdoor_test.arff"));
-		Instances structure2 = loader2.getDataSet();
-		structure2.setClassIndex(structure2.numAttributes() - 1);
+//		ArffLoader loader = new ArffLoader();
+//		loader.setFile(new File(getOutputFilename() + ".arff"));
+//		loader.setFile(new File("./output/dwdoor.arff"));
+//		Instances structure = loader.getDataSet();
+//		structure.setClassIndex(structure.numAttributes() - 1);
+//		ArffLoader loader2 = new ArffLoader();
+//		loader2.setFile(new File(getOutputFilename() + "_test.arff"));
+//		loader2.setFile(new File("./output/dwdoor_test.arff"));
+//		Instances structure2 = loader2.getDataSet();
+//		structure2.setClassIndex(structure2.numAttributes() - 1);
 		
 		// This is evaluating on the CLASS index
 		// not necessarily the desired state property
@@ -349,10 +350,10 @@ public class PoptionsDriver {
 	public void run(Random rng, int numTrials) {
 		
 		// data collection phase
-//		collectData(numTrials, rng.nextLong());
+		collectData(numTrials, rng.nextLong());
 		
 		// training phase
-//		train(rng);
+		train(rng);
 		//trainer.visualize(outputPath); // does not show accurate bounds/walls except for last domain
 		
 		// evaluation phase (ground parameterized options in RL environment)
@@ -371,15 +372,15 @@ public class PoptionsDriver {
 		RandomFactory.seedMapped(0, 3914836); //3914836 tough for cleanup
 		Random rng = RandomFactory.getMapped(0);
 		
-//		PoptionsTrainer trainer = new CleanupRandomTrainer(1, 1, rng.nextLong(), CleanupWorld.PF_BLOCK_IN_ROOM);
-		PoptionsTrainer trainer = new DoorWorldTrainer(5, 14, 5, 14, rng.nextLong());
+		PoptionsTrainer trainer = new CleanupRandomTrainer(1, 1, rng.nextLong(), CleanupWorld.PF_BLOCK_IN_ROOM);
+//		PoptionsTrainer trainer = new DoorWorldTrainer(5, 14, 5, 14, rng.nextLong());
 		Classifier model = new J48();
 		String outputPath = "output/";
 		String outputPrefix = "driver_";
 		
 		PoptionsDriver driver = new PoptionsDriver(trainer, model, outputPath, outputPrefix);
-		int numTrials = 50;
-		driver.run(rng, numTrials);
+		int numTrainingTrials = 100;
+		driver.run(rng, numTrainingTrials);
 		
 	}
 	

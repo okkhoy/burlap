@@ -1,4 +1,4 @@
-package poption;
+package poption.domain;
 import java.util.List;
 import java.util.Random;
 

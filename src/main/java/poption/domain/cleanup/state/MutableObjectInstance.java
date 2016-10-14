@@ -1,0 +1,9 @@
+package poption.domain.cleanup.state;
+
+import burlap.mdp.core.oo.state.ObjectInstance;
+import burlap.mdp.core.state.MutableState;
+
+public interface MutableObjectInstance extends ObjectInstance, MutableState {
+
+	
+}
