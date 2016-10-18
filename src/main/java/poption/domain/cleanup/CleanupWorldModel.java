@@ -14,10 +14,8 @@ import burlap.mdp.core.state.State;
 import burlap.mdp.singleagent.model.statemodel.FullStateModel;
 import burlap.mdp.singleagent.oo.ObjectParameterizedActionType;
 import burlap.mdp.singleagent.oo.ObjectParameterizedActionType.SAObjectParameterizedAction;
-import poption.domain.cleanup.state.CleanupAgent;
-import poption.domain.cleanup.state.CleanupBlock;
-import poption.domain.cleanup.state.CleanupRoom;
-import poption.domain.cleanup.state.CleanupWorldState;
+//import cleanup.CleanupWorld.PullActionType;
+import poption.domain.cleanup.state.*;
 
 public class CleanupWorldModel implements FullStateModel {
 
@@ -26,6 +24,7 @@ public class CleanupWorldModel implements FullStateModel {
 		protected int maxX;
 		protected int maxY;
 		protected double [][] transitionProbs;
+		private double lockProb;
 		
 		public CleanupWorldModel() {
 			
@@ -62,52 +61,9 @@ public class CleanupWorldModel implements FullStateModel {
 			} else if (actionName.equals(CleanupWorld.ACTION_PULL)) {
 //				return pull(s, (SAObjectParameterizedAction)a);
 				return pull(s, a);
-			} else if (actionName.equals(CleanupWorld.ACTION_PUSH)) {
-				return push(s, a);
-			} else if (actionName.equals(CleanupWorld.ACTION_TURN_LEFT)) {
-				return turn(s, a);
-			} else if (actionName.equals(CleanupWorld.ACTION_TURN_RIGHT)) {
-				return turn(s, a);
 			}
 			throw new RuntimeException("Unknown action " + actionName);
 		}
-		
-		public State turn(State s, Action action) {
-			
-			CleanupWorldState cws = (CleanupWorldState)s;
-			CleanupAgent agent = cws.agent;
-			String current = (String) agent.get(CleanupWorld.ATT_DIR);
-			String direction = current;
-			if (current.equals(CleanupWorld.ACTION_NORTH)) {
-				if (action.actionName().equals(CleanupWorld.ACTION_TURN_LEFT)) {
-					direction = CleanupWorld.ACTION_WEST;
-				} else {
-					direction = CleanupWorld.ACTION_EAST;
-				}
-			} else if (current.equals(CleanupWorld.ACTION_SOUTH)) {
-				if (action.actionName().equals(CleanupWorld.ACTION_TURN_LEFT)) {
-					direction = CleanupWorld.ACTION_EAST;
-				} else {
-					direction = CleanupWorld.ACTION_WEST;
-				}
-			} else if (current.equals(CleanupWorld.ACTION_EAST)) {
-				if (action.actionName().equals(CleanupWorld.ACTION_TURN_LEFT)) {
-					direction = CleanupWorld.ACTION_NORTH;
-				} else {
-					direction = CleanupWorld.ACTION_SOUTH;
-				}
-			} else if (current.equals(CleanupWorld.ACTION_WEST)) {
-				if (action.actionName().equals(CleanupWorld.ACTION_TURN_LEFT)) {
-					direction = CleanupWorld.ACTION_SOUTH;
-				} else {
-					direction = CleanupWorld.ACTION_NORTH;
-				}
-			}
-			CleanupAgent nAgent = cws.touchAgent();
-			nAgent.set(CleanupWorld.ATT_DIR, direction);
-			return s;
-		}
-
 		
 //		public State pull(State s, SAObjectParameterizedAction action) {
 		public State pull(State s, Action action) {
@@ -163,58 +119,6 @@ public class CleanupWorldModel implements FullStateModel {
 			return s;
 		}
 
-		public State push(State s, Action action) {
-			
-			CleanupWorldState cws = (CleanupWorldState)s;
-			CleanupAgent agent = cws.agent;
-			String agentDirection = (String) agent.get(CleanupWorld.ATT_DIR);
-			int direction = actionDir(agentDirection);
-			int curX = (Integer) agent.get(CleanupWorld.ATT_X);
-			int curY = (Integer) agent.get(CleanupWorld.ATT_Y);
-			//first get change in x and y from direction using 0: north; 1: south; 2:east; 3: west
-			int xdelta = 0;
-			int ydelta = 0;
-			if(direction == 0){
-				ydelta = 1;
-			} else if(direction == 1){
-				ydelta = -1;
-			} else if(direction == 2){
-				xdelta = 1;
-			} else{
-				xdelta = -1;
-			}
-			int nx = curX + xdelta;
-			int ny = curY + ydelta;
-			int nbx = nx;
-			int nby = ny;
-
-			boolean agentCanPush = false;
-			CleanupRoom roomContaining = cws.roomContainingPointIncludingBorder(nx, ny);
-			CleanupBlock pushedBlock = cws.getBlockAtPoint(nx, ny);
-			if(pushedBlock == null){
-				agentCanPush = false;
-			} else {
-				int bx = (Integer) pushedBlock.get(CleanupWorld.ATT_X);
-				int by = (Integer) pushedBlock.get(CleanupWorld.ATT_Y);
-				nbx = bx + xdelta;
-				nby = by + ydelta;
-				if(cws.isOpen(roomContaining, nbx, nby)){
-						agentCanPush = true;
-//					}
-				}
-			}
-			if (agentCanPush){
-				CleanupBlock nBlock = cws.touchBlock(pushedBlock.name());
-				nBlock.set(CleanupWorld.ATT_X, nbx);
-				nBlock.set(CleanupWorld.ATT_Y, nby);
-				CleanupAgent nAgent = cws.touchAgent();
-				nAgent.set(CleanupWorld.ATT_X, nx);
-				nAgent.set(CleanupWorld.ATT_Y, ny);
-				nAgent.set(CleanupWorld.ATT_DIR, agentDirection);
-			}
-			return s;
-		}
-
 		public State move(State s, String actionName) {
 			
 			CleanupWorldState cws = (CleanupWorldState)s;
@@ -236,18 +140,34 @@ public class CleanupWorldModel implements FullStateModel {
 			}
 			int nx = curX + xdelta;
 			int ny = curY + ydelta;
+			int nbx = nx;
+			int nby = ny;
 
 			boolean agentCanMove = false;
+			boolean blockCanMove = false;
 			CleanupRoom roomContaining = cws.roomContainingPointIncludingBorder(nx, ny);
-			CleanupBlock block = cws.getBlockAtPoint(nx, ny);
-			if(block == null){
+			CleanupBlock pushedBlock = cws.getBlockAtPoint(nx, ny);
+			if(pushedBlock == null){
 				if(!cws.wallAt(roomContaining, nx, ny)){
 					agentCanMove = true;
 				}
 			} else {
-				agentCanMove = false;
+				int bx = (Integer) pushedBlock.get(CleanupWorld.ATT_X);
+				int by = (Integer) pushedBlock.get(CleanupWorld.ATT_Y);
+				nbx = bx + xdelta;
+				nby = by + ydelta;
+				if(cws.isOpen(roomContaining, nbx, nby)){
+						blockCanMove = true;
+						agentCanMove = true;
+//					}
+				}
 			}
 			if (agentCanMove){
+				if (blockCanMove) {
+					CleanupBlock nBlock = cws.touchBlock(pushedBlock.name());
+					nBlock.set(CleanupWorld.ATT_X, nbx);
+					nBlock.set(CleanupWorld.ATT_Y, nby);
+				}
 				CleanupAgent nAgent = cws.touchAgent();
 				nAgent.set(CleanupWorld.ATT_X, nx);
 				nAgent.set(CleanupWorld.ATT_Y, ny);
@@ -255,7 +175,6 @@ public class CleanupWorldModel implements FullStateModel {
 			}
 			return s;
 		}
-		
 		
 		protected boolean checkDoorLockStatus(CleanupWorldState cws, int nbx, int nby) {
 			boolean isUnlocked = true;

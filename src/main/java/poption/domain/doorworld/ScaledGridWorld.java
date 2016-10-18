@@ -1,4 +1,4 @@
-package poption.domain;
+package poption.domain.doorworld;
 
 import burlap.domain.singleagent.gridworld.GridWorldDomain;
 

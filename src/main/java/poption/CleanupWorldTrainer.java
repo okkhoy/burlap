@@ -7,7 +7,10 @@ import java.util.Random;
 import javax.swing.JFrame;
 
 import burlap.behavior.policy.Policy;
+import burlap.behavior.policy.PolicyUtils;
+import burlap.behavior.singleagent.Episode;
 import burlap.behavior.singleagent.auxiliary.EpisodeSequenceVisualizer;
+import burlap.behavior.singleagent.auxiliary.StateReachability;
 import burlap.behavior.singleagent.learning.tdmethods.QLearning;
 import burlap.behavior.singleagent.options.Option;
 import burlap.behavior.singleagent.planning.Planner;
@@ -15,53 +18,65 @@ import burlap.behavior.singleagent.planning.deterministic.DDPlannerPolicy;
 import burlap.behavior.singleagent.planning.deterministic.DeterministicPlanner;
 import burlap.behavior.singleagent.planning.deterministic.uninformed.bfs.BFS;
 import burlap.behavior.singleagent.planning.stochastic.rtdp.BoundedRTDP;
+import burlap.behavior.valuefunction.ConstantValueFunction;
+import burlap.behavior.valuefunction.ValueFunction;
 import burlap.debugtools.RandomFactory;
 import burlap.mdp.auxiliary.common.GoalConditionTF;
 import burlap.mdp.auxiliary.stateconditiontest.StateConditionTest;
 import burlap.mdp.core.TerminalFunction;
 import burlap.mdp.core.oo.state.OOState;
+import burlap.mdp.core.state.State;
 import burlap.mdp.singleagent.common.GoalBasedRF;
+import burlap.mdp.singleagent.environment.SimulatedEnvironment;
 import burlap.mdp.singleagent.model.RewardFunction;
 import burlap.mdp.singleagent.oo.OOSADomain;
+import burlap.oomdp.auxiliary.common.NullTermination;
+import burlap.oomdp.singleagent.SADomain;
+import burlap.statehashing.HashableStateFactory;
 import burlap.statehashing.masked.MaskedHashableStateFactory;
-import poption.domain.cleanup.CleanupGoal;
-import poption.domain.cleanup.CleanupGoalDescription;
-import poption.domain.cleanup.CleanupWorld;
-import poption.domain.cleanup.state.CleanupRandomStateGenerator;
-import poption.domain.cleanup.state.CleanupWorldState;
+import burlap.statehashing.simple.SimpleHashableStateFactory;
+import burlap.visualizer.Visualizer;
+import poption.domain.cleanup.*;
+import poption.domain.cleanup.state.*;
+import poptions.BoundedStateReachability;
 
-public class CleanupRandomTrainer extends PoptionsTrainer {
+public class CleanupWorldTrainer extends PoptionsTrainer {
 
+	public static final int BOUND_REACHABLE_STATES = 100000;
+	
+	private int width;
+	private int height;
 	private Random rng;
 	private CleanupWorld cw;
 	private RewardFunction rf;
 	private TerminalFunction tf;
-	private Planner planner;
 	private String goalPF;
 	private List<String> classesInFeatureVector;
 	private int numBlocks = 1;
 	private int numGoals = 1;
 	private int randomFactoryMapIndex = 4245;
 	
+	private Planner planner;
 	private CleanupGoalDescription[] goalDescriptions;
 	
-	public CleanupRandomTrainer(int numBlocks, int numGoals) {
+	public CleanupWorldTrainer(int numBlocks, int numGoals) {
 		super();
+		this.width = 13;
+		this.height = 13;
 		this.name = "cleanup";
 		this.numBlocks = numBlocks;
 		this.numGoals = numGoals;
-		classesInFeatureVector = Arrays.asList(CleanupWorld.CLASS_AGENT, CleanupWorld.CLASS_BLOCK, CleanupWorld.CLASS_ROOM);
+		classesInFeatureVector = Arrays.asList(CleanupWorld.CLASS_AGENT, CleanupWorld.CLASS_BLOCK, CleanupWorld.CLASS_ROOM, CleanupWorld.CLASS_DOOR);
 	}
 	
-	public CleanupRandomTrainer(int numBlocks, int numGoals, long seed) {
-		this(numBlocks, numGoals, seed, CleanupWorld.PF_BLOCK_IN_ROOM);
-	}
-	
-	public CleanupRandomTrainer(int numBlocks, int numGoals, long seed, String goalPF) {
+	public CleanupWorldTrainer(int numBlocks, int numGoals, long seed, String goalPF) {
 		this(numBlocks, numGoals);
 		this.goalPF = goalPF;
 		setStateHashingMasks();
-		initialize(seed, false);
+	}
+
+	public CleanupWorldTrainer(int numBlocks, int numGoals, long seed) {
+		this(numBlocks, numGoals, seed, CleanupWorld.PF_BLOCK_IN_ROOM);
 	}
 	
 	@Override
@@ -82,11 +97,6 @@ public class CleanupRandomTrainer extends PoptionsTrainer {
 	
 	@Override
 	public void initialize(long seed, boolean testing) {
-		double lockProb = 0.0;
-		
-		if (testing) {
-			goalPF = CleanupWorld.PF_BLOCK_IN_ROOM;
-		}
 		
 		// do __NOT__ call setStateHashingMasks
 		
@@ -95,54 +105,70 @@ public class CleanupRandomTrainer extends PoptionsTrainer {
 		
 		RandomFactory.seedMapped(randomFactoryMapIndex, seed);
 		rng = RandomFactory.getMapped(randomFactoryMapIndex);
-
+		
+		if (testing) {
+			// evaluation goal task is to move a block to a room
+			goalPF = CleanupWorld.PF_BLOCK_IN_ROOM;
+		}
+		
 		cw = new CleanupWorld();
 		cw.includeDirectionAttribute(true);
-		cw.includeLockableDoors(true);
-		cw.setLockProbability(lockProb);
-		domain = (OOSADomain) cw.generateDomain();
+		cw.includeLockableDoors(false);
+//		double lockProb = 0.0;
+//		cw.setLockProbability(lockProb);
 		
 		CleanupRandomStateGenerator randomCleanup = new CleanupRandomStateGenerator();
-		
+		randomCleanup.setWidth(width);
+		randomCleanup.setHeight(height);
 		initialState = (OOState) randomCleanup.generateState(); //cw.getRandomState(domain, rng, numBlocks);
+		CleanupGoal goal = new CleanupGoal();
+		goalCondition = (StateConditionTest) goal;
+		rf = new CleanupWorldRF(goalCondition, 1.0, 0.0);
+		tf = new GoalConditionTF(goalCondition);
+		cw.setRf(rf);
+		cw.setTf(tf);
+		domain = (OOSADomain) cw.generateDomain();
 		
 		goalDescriptions = CleanupRandomStateGenerator.getRandomGoalDescription(rng, (CleanupWorldState) initialState, numGoals, domain.propFunction(goalPF));
-		System.out.println(goalDescriptions[0]);
+		goal.setGoals(goalDescriptions);
 		
-		goalCondition = (StateConditionTest) new CleanupGoal(goalDescriptions);
-		rf = new GoalBasedRF(goalCondition, 1., 0.);
-		tf = new GoalConditionTF(goalCondition);
+		System.out.println("Goal is: " + goalDescriptions[0]);
 		
 	}
 
 	@Override
 	public boolean train(String outputPath) {
-		return train(outputPath, 1000, 0.99, 50, 0.01, 500);
-	}		
+		int maxSteps = 1000;
+		double gamma = 0.99;
+		int maxRolloutDepth = 50;
+		double maxDiff = 0.01;
+		int maxRollouts = 500;
+		return train(outputPath, maxSteps, gamma, maxRolloutDepth, maxDiff, maxRollouts);
+	}	
+
 	public boolean train(String outputPath, int maxSteps, double gamma, int maxRolloutDepth, double maxDiff, int maxRollouts) {
 		System.out.println("maxSteps: " + maxSteps);
 
-		FixedDoorCleanupEnv env = new FixedDoorCleanupEnv(domain, rf, tf, initialState);
-		RewardFunction heuristicRF = new CleanupWorldRF(goalCondition, 1., 0.);
-		ValueFunctionInitialization heuristic = CleanupRandomDomainDriver.getL0Heuristic(initialState, heuristicRF);
-		BoundedRTDP brtd = new BoundedRTDP(domain, rf, tf, gamma, new SimpleHashableStateFactory(false),
-				new ValueFunctionInitialization.ConstantValueFunctionInitialization(0.), heuristic, maxDiff, maxRollouts);
+		int maxTrajectoryLength = 10000;
+		double lockProb = 0.0;
+		RewardFunction heuristicRF = new CleanupWorldRF(goalCondition, 1.0, 0.0);
+		ValueFunction heuristic = CleanupWorld.getGroundHeuristic(initialState, heuristicRF, lockProb);
+		BoundedRTDP brtd = new BoundedRTDP(domain, gamma,
+				new SimpleHashableStateFactory(false),
+				new ConstantValueFunction(0.),
+				heuristic, maxDiff, maxRollouts);
 		brtd.setMaxRolloutDepth(maxRolloutDepth);
 		brtd.toggleDebugPrinting(true);
 
-		//visualize execution
-//		VisualActionObserver observer = new VisualActionObserver(domain, 
-//				CleanupVisualizer.getVisualizer("data/resources/robotImages/"));
-//		observer.initGUI();
-//		((SADomain)domain).addActionObserverForAllAction(observer);
-		
 		long startTime = System.nanoTime();
-		Policy P = brtd.planFromState(initialState);
-		result = P.evaluateBehavior(env, maxSteps);
+		Policy p = brtd.planFromState(initialState);
+//		result = p.evaluateBehavior(env, maxSteps);
+		SimulatedEnvironment env = new SimulatedEnvironment(domain, initialState);
+		result = PolicyUtils.rollout(p, env, maxTrajectoryLength);
 		long endTime = System.nanoTime();
 		long duration = (endTime - startTime);
 		System.out.println("total time: " + duration);
-		result.writeToFile(outputPath + "cwr_brtdp");
+		result.write(outputPath + "cwr_brtdp");
 		System.out.println("total actions: " + result.actionSequence.size());
 		System.out.println("number Bellman: " + brtd.getNumberOfBellmanUpdates());
 		System.out.println("maxTimeStep: " + result.maxTimeStep()+ " " + !((result.maxTimeStep() + 1 >= maxSteps)) );
@@ -152,20 +178,49 @@ public class CleanupRandomTrainer extends PoptionsTrainer {
 	
 	@Override
 	public Planner getPlanner(StateConditionTest goal, HashableStateFactory hf){
-		DeterministicPlanner dp = new BFS(domain, goal, hf);
-		dp.toggleDebugPrinting(false);
-		planner = dp;
+		cw.setRf(new GoalBasedRF(goal));
+		cw.setTf(tf);
+		OOSADomain planningDomain = (OOSADomain) cw.generateDomain();
+//		if (planner == null) {
+//			
+//		}
+		planner = initializeBFS(planningDomain, goal, hf);
 		return planner;
 	}
 	
+
+	@Override
+	public List<State> getReachableStates() {
+		List<State> allStates = StateReachability.getReachableStates(initialState, domain, mhsf, 100000);
+		return allStates;
+	}
+
+	@Override
+	public Visualizer getVisualizer() {
+		return CleanupVisualizer.getVisualizer(width, height);
+	}
+
+	
 	@Override
 	public Policy createOptionPolicy(StateConditionTest goal, HashableStateFactory hf) {
-		RewardFunction rf = new CleanupWorldRF(goal, 1., 0.);
-		TerminalFunction tf = new GoalConditionTF(goal);
-		Planner planner = getPlanner(goal, hf);
-		Policy optionPolicy = new DDPlannerPolicy((DeterministicPlanner)planner);
-		optionPolicy.evaluateBehavior(initialState, rf, tf);
+		cw.setRf(new CleanupWorldRF(goal, 1., 0.));
+		cw.setTf(new GoalConditionTF(goal));
+		OOSADomain optionDomain = (OOSADomain) cw.generateDomain();
+//		BoundedRTDP brtdp = initializeBRTDP(optionDomain, hf);
+		BFS bfs = initializeBFS(optionDomain, goal, hf);
+//		Policy optionPolicy = new DDPlannerPolicy((DeterministicPlanner)planner);
+		Policy optionPolicy = bfs.planFromState(initialState);
 		return optionPolicy;
+	}
+	
+//	public BoundedRTDP initializeBRTDP(OOSADomain planningDomain, HashableStateFactory hf) {
+//	
+//}
+	
+	public BFS initializeBFS(OOSADomain planningDomain, StateConditionTest goal, HashableStateFactory hf) {
+		BFS bfs = new BFS(domain, goal, hf);
+		bfs.toggleDebugPrinting(false);
+		return bfs;
 	}
 	
 	@Override
@@ -185,7 +240,7 @@ public class CleanupRandomTrainer extends PoptionsTrainer {
 	
 	@Override
 	public void visualize(String outputPath) {
-		Visualizer v = CleanupVisualizer.getVisualizer("data/resources/robotImages/");
+		Visualizer v = getVisualizer();
 		EpisodeSequenceVisualizer esv = new EpisodeSequenceVisualizer(v, domain, outputPath);
 		esv.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		esv.initGUI();
@@ -199,9 +254,10 @@ public class CleanupRandomTrainer extends PoptionsTrainer {
 	@Override
 	public void evaluate(List<Option> options) {
 //		evaluatePlanning(options, false, 100, 0.99, 50, 0.01, 100);
-		evaluateLearning(options, false, 0.99, 1.0, 0.9, 1001, 10, 1000);
+//		evaluateLearning(options, false, 0.99, 1.0, 0.9, 1001, 10, 1000);
 	}
 
+	/*
 	public void evaluateLearning(List<Option> options, boolean visualize, double discountFactor,
 			double initialQValues, double learningRate, int numEpisodes, 
 			int writeEvery, int maxEpisodeSize) {
@@ -211,7 +267,7 @@ public class CleanupRandomTrainer extends PoptionsTrainer {
 			// live visualization
 			int delay = 150;
 			VisualActionObserver observer = new VisualActionObserver(domain, 
-					CleanupVisualizer.getVisualizer("data/resources/robotImages/"));
+					getVisualizer());
 			observer.setFrameDelay(delay);
 			observer.initGUI();
 			observer.setFrameDelay(delay);
@@ -231,6 +287,7 @@ public class CleanupRandomTrainer extends PoptionsTrainer {
 		}
 	}
 	
+	/*
 	public void evaluatePlanning(List<Option> options, boolean visualize, int maxSteps, double gamma, int maxRolloutDepth, double maxDiff, int maxRollouts) {
 		Environment env = new FixedDoorCleanupEnv(domain, rf, tf, initialState);
 
@@ -250,7 +307,7 @@ public class CleanupRandomTrainer extends PoptionsTrainer {
 		if (visualize) {
 			int delay = 150;
 			observer = new VisualActionObserver(domain, 
-					CleanupVisualizer.getVisualizer("data/resources/robotImages/"));
+					getVisualizer());
 			observer.setFrameDelay(delay);
 			observer.initGUI();
 			observer.setFrameDelay(delay);
@@ -265,22 +322,24 @@ public class CleanupRandomTrainer extends PoptionsTrainer {
 		long endTime = System.nanoTime();
 		long duration = (endTime - startTime);
 		System.out.println("total time: " + duration);
-		result.writeToFile("./output_eval/cwr_brtdp");
+		result.write("./output_eval/cwr_brtdp");
 	}
+	*/
 	
 	public static void main(String[] args) {
-		String outputPath = "output_cw_main/";
-		Random rng = RandomFactory.seedMapped(0,11324);//42342343);
-		long seed = rng.nextLong();
-		System.out.println("Using seed " + seed);
-		CleanupRandomTrainer trainer = new CleanupRandomTrainer(1,1,seed,CleanupWorld.PF_AGENT_IN_DOOR);
-		
-		trainer.visualize(outputPath);
-		
-		long startTime = System.nanoTime();
-		trainer.train(outputPath + "main1_");
-		long endTime = System.nanoTime();
-		long duration = (endTime - startTime); 
-		System.out.println("Duration: " + duration);
+//		String outputPath = "output_cw_main/";
+//		Random rng = RandomFactory.seedMapped(0,11324);//42342343);
+//		long seed = rng.nextLong();
+//		System.out.println("Using seed " + seed);
+//		CleanupWorldTrainer trainer = new CleanupWorldTrainer(1,1,seed,CleanupWorld.PF_AGENT_IN_DOOR);
+//		
+//		trainer.visualize(outputPath);
+//		
+//		long startTime = System.nanoTime();
+//		trainer.train(outputPath + "main1_");
+//		long endTime = System.nanoTime();
+//		long duration = (endTime - startTime); 
+//		System.out.println("Duration: " + duration);
 	}
+	
 }

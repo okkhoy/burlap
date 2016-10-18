@@ -15,6 +15,7 @@ import burlap.behavior.policy.Policy;
 import burlap.behavior.singleagent.options.Option;
 import burlap.behavior.singleagent.options.SubgoalOption;
 import burlap.behavior.valuefunction.ValueFunction;
+import burlap.debugtools.DPrint;
 import burlap.debugtools.RandomFactory;
 import burlap.domain.singleagent.gridworld.GridWorldDomain;
 import burlap.mdp.auxiliary.stateconditiontest.StateConditionTest;
@@ -50,6 +51,7 @@ public class PoptionsDriver {
 	public static final int RANDOM_FACTORY_SEED_COLLECT_DATA = 52033;
 	public static final int RANDOM_FACTORY_SEED_TRAIN = 930241;
 	public static final int NUM_FOLDS_CROSSVALIDATION = 5;
+    public static final int DEBUG_CODE = 513249;
 	
 	public PoptionsDriver(PoptionsTrainer trainer, Classifier model, String outputPath, String csvPrefix) {
 		this.trainer = trainer;
@@ -76,11 +78,11 @@ public class PoptionsDriver {
 		boolean trainingSuccess = false;
 		while (!trainingSuccess) {
 			long seed = rng.nextLong();
-			System.out.println("Trial " + trial + " using seed " + seed);
+			DPrint.cl(DEBUG_CODE,"Trial " + trial + " using seed " + seed);
 			trainer.initialize(seed, false);
 			trainingSuccess = trainer.train(outputPath + trial + "_");
 			if (!trainingSuccess) {
-				System.out.println("Failed to finish, choosing new seed");
+				DPrint.cl(DEBUG_CODE,"Failed to finish, choosing new seed");
 			}
 		}
 		
@@ -132,7 +134,7 @@ public class PoptionsDriver {
 			RandomFactory.seedMapped(RANDOM_FACTORY_SEED_COLLECT_DATA, seed);
 			Random rng = RandomFactory.getMapped(RANDOM_FACTORY_SEED_COLLECT_DATA);
 
-			System.out.println("Beginning " + numTrials + " trials");
+			DPrint.cl(DEBUG_CODE,"Beginning " + numTrials + " trials");
 			for(int i = 0; i < numTrials; i++) {
 				runTrial(rng, writer, i);
 			}
@@ -170,8 +172,8 @@ public class PoptionsDriver {
 		Random trainRng = RandomFactory.getMapped(RANDOM_FACTORY_SEED_TRAIN);
 		Evaluation eval = new Evaluation(data);
 		eval.crossValidateModel(model, data, NUM_FOLDS_CROSSVALIDATION, trainRng);
-		System.out.println(eval.toSummaryString());
-		System.out.println(eval.toMatrixString());
+		DPrint.cl(DEBUG_CODE,eval.toSummaryString());
+		DPrint.cl(DEBUG_CODE,eval.toMatrixString());
 		model.buildClassifier(data);
 		
 		SerializationHelper.write(getOutputFilename() + "_" + model.getClass().getSimpleName() + ".model", model);
@@ -197,7 +199,7 @@ public class PoptionsDriver {
 		boolean testing = true;
 		trainer.initialize(seed, testing);
 		List<double[]> fvs = trainer.getTestFeatureVectors();
-		System.out.println(fvs.size() + " feature vectors!");
+		DPrint.cl(DEBUG_CODE,fvs.size() + " feature vectors!");
 
 		for (int i = 0; i < fvs.size(); i++) {
 			double[] fv = fvs.get(i);
@@ -245,8 +247,8 @@ public class PoptionsDriver {
 		// show the 'false positives' below are states the model things are terminal
 //		Evaluation eval = new Evaluation(structure);
 //		eval.evaluateModel(model, structure2);
-//		System.out.println(eval.toSummaryString("\nResults\n=======\n", false));
-//		System.out.println(eval.toMatrixString());
+//		DPrint.cl(DEBUG_CODE,eval.toSummaryString("\nResults\n=======\n", false));
+//		DPrint.cl(DEBUG_CODE,eval.toMatrixString());
 
 		final MaskedHashableStateFactory mhsf = trainer.getMaskedHashableStateFactory();
 		
@@ -256,7 +258,7 @@ public class PoptionsDriver {
 			Instance inst = data.instance(i);
 			double clsLabel = model.classifyInstance(inst);
 			if (clsLabel > 0.0) {
-//				System.out.println(trainer.states.get(i));
+//				DPrint.cl(DEBUG_CODE,trainer.states.get(i));
 //				CleanupRandomTrainer cwt = (CleanupRandomTrainer)trainer;
 //				System.out.print(cwt.goalDescriptions[0]);
 //				if(cwt.goalCondition.satisfies(trainer.states.get(i))) {
@@ -266,7 +268,6 @@ public class PoptionsDriver {
 //					System.out.print(" " + is.getFirstObjectOfClass(CleanupWorld.CLASS_BLOCK).getStringValForAttribute(CleanupWorld.ATT_X));
 //					System.out.print(" " + is.getFirstObjectOfClass(CleanupWorld.CLASS_BLOCK).getStringValForAttribute(CleanupWorld.ATT_Y) + " ");
 //					System.out.print(new CleanupWorldRandom.CleanupGoal(cwt.goalDescriptions).satisfies(trainer.states.get(i)));
-//					System.out.println();
 //				}
 				HashableState hs = mhsf.hashState(trainer.states.get(i));
 				if (!hashedStates.contains(hs)) {
@@ -293,7 +294,7 @@ public class PoptionsDriver {
 		final State end = endState;
 		final MaskedHashableStateFactory mhsf = trainer.getMaskedHashableStateFactory();
 		
-		System.out.println("make option");
+		DPrint.cl(DEBUG_CODE,"make option");
 		
 		StateConditionTest initiationConditionTest = new StateConditionTest() {
 			@Override
@@ -329,13 +330,14 @@ public class PoptionsDriver {
 	}
 	
 	public List<Option> makeOptions(List<State> optionEndStates) {
+		DPrint.cl(DEBUG_CODE,optionEndStates.size() + " option end states");
 		List<Option> options = new ArrayList<Option>();
 		for (int i = 0; i < optionEndStates.size(); i++) {
 			State s = optionEndStates.get(i);
 			Option option = makeOption(s,optionNamePrefix+i);
 			if (option != null) {
 				options.add(option);
-//				System.out.println(s);
+//				DPrint.cl(DEBUG_CODE,s);
 //				System.exit(-1);
 			}
 		}
@@ -343,7 +345,7 @@ public class PoptionsDriver {
 	}
 	
 	public void evaluate(List<Option> options) {
-		System.out.println("Begin evaluation...");
+		DPrint.cl(DEBUG_CODE,"Begin evaluation...");
 		trainer.evaluate(options);
 	}
 	
@@ -360,7 +362,6 @@ public class PoptionsDriver {
 		long testSeed = rng.nextLong();
 		List<State> optionEndStates = test(testSeed);
 		
-		System.out.println(optionEndStates.size() + " option end states");
 		List<Option> options = makeOptions(optionEndStates);
 
 		evaluate(options);
@@ -368,18 +369,20 @@ public class PoptionsDriver {
 	}
 
 	public static void main (String[] args) {
+
+        DPrint.toggleCode(DEBUG_CODE, false);
 		
 		RandomFactory.seedMapped(0, 3914836); //3914836 tough for cleanup
 		Random rng = RandomFactory.getMapped(0);
 		
-		PoptionsTrainer trainer = new CleanupRandomTrainer(1, 1, rng.nextLong(), CleanupWorld.PF_BLOCK_IN_ROOM);
-//		PoptionsTrainer trainer = new DoorWorldTrainer(5, 14, 5, 14, rng.nextLong());
+//		PoptionsTrainer trainer = new CleanupWorldTrainer(1, 1, rng.nextLong(), CleanupWorld.PF_BLOCK_IN_ROOM);
+		PoptionsTrainer trainer = new DoorWorldTrainer(5, 14, 5, 14, rng.nextLong());
 		Classifier model = new J48();
 		String outputPath = "output/";
 		String outputPrefix = "driver_";
 		
 		PoptionsDriver driver = new PoptionsDriver(trainer, model, outputPath, outputPrefix);
-		int numTrainingTrials = 100;
+		int numTrainingTrials = 50;
 		driver.run(rng, numTrainingTrials);
 		
 	}

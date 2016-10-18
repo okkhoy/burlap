@@ -14,8 +14,34 @@ import poption.domain.cleanup.CleanupWorld;
 
 public class CleanupRandomStateGenerator implements StateGenerator {
 
-	public int numBlocks = 2;
+	private int numBlocks = 2;
+	private int width = 13;
+	private  int height = 13;
 	
+	public int getNumBlocks() {
+		return numBlocks;
+	}
+
+	public void setNumBlocks(int numBlocks) {
+		this.numBlocks = numBlocks;
+	}
+
+	public int getWidth() {
+		return width;
+	}
+
+	public void setWidth(int width) {
+		this.width = width;
+	}
+
+	public int getHeight() {
+		return height;
+	}
+
+	public void setHeight(int height) {
+		this.height = height;
+	}
+
 	@Override
 	public State generateState() {
 
@@ -23,10 +49,7 @@ public class CleanupRandomStateGenerator implements StateGenerator {
 
 		int numRooms = 4;
 		int numDoors = 4;
-		
-		int width = 13;
-		int height = 13;
-		
+				
 		int y1 = 3;
 		int y2 = 7;
 		int y3 = 12;

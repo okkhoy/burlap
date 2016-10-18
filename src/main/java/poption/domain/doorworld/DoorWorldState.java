@@ -1,4 +1,4 @@
-package poption.domain;
+package poption.domain.doorworld;
 
 import static burlap.domain.singleagent.gridworld.GridWorldDomain.VAR_TYPE;
 import static burlap.domain.singleagent.gridworld.GridWorldDomain.VAR_X;

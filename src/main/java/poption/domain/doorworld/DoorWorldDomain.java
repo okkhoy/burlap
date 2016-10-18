@@ -1,4 +1,4 @@
-package poption.domain;
+package poption.domain.doorworld;
 
 import java.util.ArrayList;
 import java.util.Arrays;

@@ -24,6 +24,7 @@ import burlap.behavior.singleagent.planning.deterministic.DDPlannerPolicy;
 import burlap.behavior.singleagent.planning.deterministic.DeterministicPlanner;
 import burlap.behavior.singleagent.planning.stochastic.valueiteration.ValueIteration;
 import burlap.behavior.valuefunction.ValueFunction;
+import burlap.debugtools.RandomFactory;
 import burlap.domain.singleagent.gridworld.GridWorldDomain;
 import burlap.domain.singleagent.gridworld.GridWorldVisualizer;
 import burlap.mdp.core.TerminalFunction;
@@ -48,7 +49,7 @@ import burlap.mdp.auxiliary.stateconditiontest.TFGoalCondition;
 import burlap.statehashing.masked.MaskedHashableStateFactory;
 import burlap.statehashing.simple.SimpleHashableStateFactory;
 import burlap.visualizer.Visualizer;
-import poption.domain.DoorWorldDomain;
+import poption.domain.doorworld.DoorWorldDomain;
 import weka.classifiers.Classifier;
 import weka.classifiers.trees.J48;
 
@@ -60,6 +61,7 @@ public class DoorWorldTrainer extends PoptionsTrainer {
 	private RewardFunction rf;
 	private TerminalFunction tf;
 	private HashableStateFactory hashingFactory;
+	private int randomFactoryMapIndex = 4246;
 
 	private ValueIteration planner;
 	
@@ -72,11 +74,11 @@ public class DoorWorldTrainer extends PoptionsTrainer {
 	
 	public DoorWorldTrainer(int minWidth, int maxWidth, int minHeight, int maxHeight) {
 		super();
+		this.name = "door";
 		this.minWidth = minWidth;
 		this.maxWidth = maxWidth;
 		this.minHeight = minHeight;
 		this.maxHeight = maxHeight;
-		this.name = "door";
 		this.classesInFeatureVector = Arrays.asList(DoorWorldDomain.CLASS_AGENT);
 		propFunctions = new ArrayList<PropositionalFunction>();
 		mhsf = new MaskedHashableStateFactory(false);
@@ -84,7 +86,6 @@ public class DoorWorldTrainer extends PoptionsTrainer {
 	
 	public DoorWorldTrainer(int minWidth, int maxWidth, int minHeight, int maxHeight, long seed) {
 		this(minWidth, maxWidth, minHeight, maxHeight);
-//		initialize(seed, false);
 	}
 	
 	@Override
@@ -92,8 +93,9 @@ public class DoorWorldTrainer extends PoptionsTrainer {
 		
 		System.out.println("Using seed: " + seed);
 		
-		rng = new Random(seed);
-		
+		RandomFactory.seedMapped(randomFactoryMapIndex, seed);
+		rng = RandomFactory.getMapped(randomFactoryMapIndex);
+
 		int width = maxWidth-1;
 		int height = maxHeight-1;
 		if (!testing) {
@@ -113,8 +115,6 @@ public class DoorWorldTrainer extends PoptionsTrainer {
 		} else {
 			domainGenerator.setMapOneDoorRandom(rng);
 		}
-		// make it stochastic
-		// MUST do this BEFORE generating domain
 		domainGenerator.setProbSucceedTransitionDynamics(0.95);
 		rf = new UniformCostRF();
 		PropositionalFunction atLocationPF = domainGenerator.generateDomain().propFunction(GridWorldDomain.PF_AT_LOCATION);
@@ -168,7 +168,6 @@ public class DoorWorldTrainer extends PoptionsTrainer {
 		
 		double gamma = 0.99;
 		double maxDelta = 0.001;
-		int maxIterations = 100;
 		Planner planner = new ValueIteration(domain, gamma, hashingFactory, maxDelta, maxIterations);
 		long startTime = System.nanoTime();
 		Policy p = planner.planFromState(initialState);
@@ -201,7 +200,6 @@ public class DoorWorldTrainer extends PoptionsTrainer {
 	
 	@Override
 	public List<State> getReachableStates() {
-		System.out.println("in getReachableStates()");
 		if (planner == null) {
 			System.out.println("init vi");
 			planner = initializeVI(domain, hashingFactory);
@@ -212,21 +210,16 @@ public class DoorWorldTrainer extends PoptionsTrainer {
 
 	@Override
 	public Policy createOptionPolicy(StateConditionTest goal, HashableStateFactory hf) {
-//		DoorWorldDomain dwdg = new DoorWorldDomain(domainGenerator.getWidth(), domainGenerator.getHeight());
-		DoorWorldDomain dwdg = domainGenerator;
-		dwdg.setRf(new GoalBasedRF(goal));
-		dwdg.setTf(tf);
-		OOSADomain optionDomain = dwdg.generateDomain();
+		domainGenerator.setRf(new GoalBasedRF(goal));
+		domainGenerator.setTf(tf);
+		OOSADomain optionDomain = domainGenerator.generateDomain();
 		ValueIteration vi = initializeVI(optionDomain, hf);
-//		Planner planner = getPlanner(goal, hf);
-//		Policy optionPolicy = planner.planFromState(initialState);
 		Policy optionPolicy = vi.planFromState(initialState);
 		return optionPolicy;
 	}
 
 	@Override
 	public Planner getPlanner(StateConditionTest goal, HashableStateFactory hf) {
-		System.out.println("in getPlanner");
 		// get the planner for current goal (e.g., option/subgoal)
 		domainGenerator.setRf(new GoalBasedRF(goal));
 		domainGenerator.setTf(tf);
@@ -268,7 +261,7 @@ public class DoorWorldTrainer extends PoptionsTrainer {
 		double gamma = 0.99;
 		double qInit = -99;
 		double learningRate = 0.9;
-		int numEpisodes = 1;
+		int numEpisodes = 200;
 		int writeEvery = 1;
 		int maxEpisodeSize = 1000;
 		evaluateLearning(options, visualize, visOptionPolicies, gamma, qInit, learningRate, numEpisodes, writeEvery, maxEpisodeSize);

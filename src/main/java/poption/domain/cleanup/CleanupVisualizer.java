@@ -40,7 +40,7 @@ public class CleanupVisualizer {
 		// do nothing
 	}
 
-	public static Visualizer getVisualizer(int width, int height, QLearning caql){
+	public static Visualizer getVisualizer(int width, int height){
 		Visualizer v = new Visualizer(getStateRenderLayer(width, height));
 		return v;
 	}

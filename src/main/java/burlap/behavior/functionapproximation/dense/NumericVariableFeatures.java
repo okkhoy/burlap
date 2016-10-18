@@ -49,7 +49,7 @@ public class NumericVariableFeatures implements DenseStateFeatures {
 			double [] vals = new double[keys.size()];
 			int i = 0;
 			for(Object key : keys){
-				Number n = (Number)s.get(key);
+				Number n = (Number)s.get(key).hashCode();
 				vals[i] = n.doubleValue();
 				i++;
 			}
