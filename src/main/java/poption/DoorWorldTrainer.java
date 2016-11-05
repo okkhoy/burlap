@@ -168,6 +168,7 @@ public class DoorWorldTrainer extends PoptionsTrainer {
 		
 		double gamma = 0.99;
 		double maxDelta = 0.001;
+		int maxIterations = 1000;
 		Planner planner = new ValueIteration(domain, gamma, hashingFactory, maxDelta, maxIterations);
 		long startTime = System.nanoTime();
 		Policy p = planner.planFromState(initialState);

@@ -331,8 +331,14 @@ public class PoptionsDriver {
 	
 	public List<Option> makeOptions(List<State> optionEndStates) {
 		DPrint.cl(DEBUG_CODE,optionEndStates.size() + " option end states");
+		
+		System.err.println("Temp debug: limiting to small number of options");
+		Collections.shuffle(optionEndStates);
+		optionEndStates = optionEndStates.subList(0, 2);
+		
 		List<Option> options = new ArrayList<Option>();
 		for (int i = 0; i < optionEndStates.size(); i++) {
+			System.out.println("making option " + i + " of " + optionEndStates.size());
 			State s = optionEndStates.get(i);
 			Option option = makeOption(s,optionNamePrefix+i);
 			if (option != null) {
@@ -352,10 +358,10 @@ public class PoptionsDriver {
 	public void run(Random rng, int numTrials) {
 		
 		// data collection phase
-		collectData(numTrials, rng.nextLong());
+//		collectData(numTrials, rng.nextLong());
 		
 		// training phase
-		train(rng);
+//		train(rng);
 		//trainer.visualize(outputPath); // does not show accurate bounds/walls except for last domain
 		
 		// evaluation phase (ground parameterized options in RL environment)
@@ -375,8 +381,8 @@ public class PoptionsDriver {
 		RandomFactory.seedMapped(0, 3914836); //3914836 tough for cleanup
 		Random rng = RandomFactory.getMapped(0);
 		
-//		PoptionsTrainer trainer = new CleanupWorldTrainer(1, 1, rng.nextLong(), CleanupWorld.PF_BLOCK_IN_ROOM);
-		PoptionsTrainer trainer = new DoorWorldTrainer(5, 14, 5, 14, rng.nextLong());
+		PoptionsTrainer trainer = new CleanupWorldTrainer(1, 1, rng.nextLong(), CleanupWorld.PF_BLOCK_IN_ROOM);
+//		PoptionsTrainer trainer = new DoorWorldTrainer(5, 14, 5, 14, rng.nextLong());
 		Classifier model = new J48();
 		String outputPath = "output/";
 		String outputPrefix = "driver_";
