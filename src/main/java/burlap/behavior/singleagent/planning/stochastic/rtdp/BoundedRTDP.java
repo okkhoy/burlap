@@ -1,11 +1,10 @@
 package burlap.behavior.singleagent.planning.stochastic.rtdp;
 
-import burlap.behavior.policy.GreedyQPolicy;
-import burlap.behavior.singleagent.planning.Planner;
-import burlap.behavior.singleagent.planning.stochastic.DynamicProgramming;
-import burlap.behavior.singleagent.planning.stochastic.dpoperator.DPOperator;
-import burlap.behavior.valuefunction.QValue;
-import burlap.behavior.valuefunction.ValueFunction;
+import burlap.behavior.singleagent.QValue;
+import burlap.behavior.singleagent.ValueFunctionInitialization;
+import burlap.behavior.singleagent.planning.ValueFunctionPlanner;
+import burlap.behavior.statehashing.StateHashFactory;
+import burlap.behavior.statehashing.StateHashTuple;
 import burlap.debugtools.DPrint;
 import burlap.debugtools.RandomFactory;
 import burlap.mdp.core.action.Action;
@@ -15,6 +14,8 @@ import burlap.mdp.singleagent.model.FullModel;
 import burlap.mdp.singleagent.model.TransitionProb;
 import burlap.statehashing.HashableState;
 import burlap.statehashing.HashableStateFactory;
+
+import java.util.*;
 
 import java.util.*;
 
@@ -172,13 +173,7 @@ public class BoundedRTDP extends DynamicProgramming implements Planner {
 		this.upperVInit = upperVInit;
 		this.maxDiff = maxDiff;
 		this.maxRollouts = maxRollouts;
-
-	}
-
-
-	@Override
-	public void setOperator(DPOperator operator) {
-		throw new RuntimeException("Bounded RTDP does not currently support custom operators.");
+		this.useCachedTransitions = false;
 	}
 
 	/**
