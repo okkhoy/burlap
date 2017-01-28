@@ -4,10 +4,14 @@ import burlap.mdp.core.oo.OODomain;
 import burlap.mdp.core.oo.propositional.GroundedProp;
 import burlap.mdp.core.oo.propositional.PropositionalFunction;
 import burlap.mdp.core.oo.state.OOState;
+import burlap.mdp.core.oo.state.ObjectInstance;
 import burlap.mdp.core.state.State;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Binary features that are determined from a list of {@link PropositionalFunction}s. The element for a corresponding
@@ -32,6 +36,22 @@ public class PFFeatures implements DenseStateFeatures {
 			i++;
 		}
 		
+	}
+	
+	/**
+	 * Returns a list of the names of the propositional functions.
+	 * @param s the input state
+	 * @return a list of the names of the propositional functions
+	 */
+	public List<String> featureNames(State s) {
+		List<String> featureNames = new LinkedList<String>();
+		for(PropositionalFunction pf : this.pfsToUse){
+			List<GroundedProp> gps = pf.allGroundings((OOState)s);
+			for(GroundedProp gp : gps){
+				featureNames.add(gp.pf.getName()+"<"+StringUtils.join(gp.params,"|")+">");
+			}
+		}
+		return featureNames;
 	}
 	
 	/**

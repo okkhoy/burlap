@@ -109,6 +109,10 @@ public class GreedyQPolicy implements SolverDerivedPolicy, EnumerablePolicy {
 		
 		return res;
 	}
+	
+	public QProvider getQPlanner() {
+		return qplanner;
+	}
 
 
 
